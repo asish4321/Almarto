@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Create a Razorpay order server-side (keeps secret key secure)
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
+    const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }

@@ -780,7 +780,7 @@ export default function CheckoutPage() {
                 )}
               </label>
             </div>
-          </div>          </div>
+          </div>
         </div>
 
         {/* Right Order Summary & Confirm (4 cols) */}
