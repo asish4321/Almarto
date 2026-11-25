@@ -5,6 +5,9 @@
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
+  # NEXT_PUBLIC_* vars are intentionally embedded in the browser bundle by Next.js.
+  # Suppress Netlify secrets scanning for these public keys.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
