@@ -312,6 +312,45 @@ export async function POST(request: Request) {
       },
     });
 
+    // Send email notification via Formspree
+    const formspreeEndpoint = process.env.FORMSPREE_ENDPOINT;
+    if (formspreeEndpoint) {
+      const addr = shippingAddress;
+      const itemLines = verifiedOrderItems.map(
+        (it: any) => `• ${it.title} x${it.quantity} — ₹${(it.price * it.quantity).toLocaleString('en-IN')}`
+      ).join('\n');
+
+      fetch(formspreeEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          subject: `🛍️ New Order ${orderNumber} — ₹${totalAmount.toLocaleString('en-IN')}`,
+          _replyto: user.email,
+          name: user.name,
+          email: user.email,
+          phone: user.phone || addr.phone,
+          message: [
+            `Order Number: ${orderNumber}`,
+            `Customer: ${user.name} (${user.email})`,
+            `Phone: ${user.phone || addr.phone || 'N/A'}`,
+            ``,
+            `Items:\n${itemLines}`,
+            ``,
+            `Subtotal: ₹${calculatedSubtotal.toLocaleString('en-IN')}`,
+            couponDiscount > 0 ? `Coupon Discount: -₹${couponDiscount.toLocaleString('en-IN')}` : null,
+            `Delivery: ₹${deliveryCharge}`,
+            `Total: ₹${totalAmount.toLocaleString('en-IN')}`,
+            `Payment: ${paymentMethod}`,
+            ``,
+            `Delivery Address:`,
+            `${addr.fullName}, ${addr.phone}`,
+            `${addr.flatHouse}, ${addr.areaColony}`,
+            `${addr.landmark ? addr.landmark + ', ' : ''}${addr.city}, ${addr.state} - ${addr.pincode}`,
+          ].filter(Boolean).join('\n'),
+        }),
+      }).catch(err => console.error('Formspree notification error:', err));
+    }
+
     return NextResponse.json({
       success: true,
       order: newOrder,

@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Eye,
   Save,
+  Trash2,
 } from 'lucide-react';
 
 interface OrderAdminItem {
@@ -88,6 +89,27 @@ export default function AdminOrdersPage() {
     setCourierPartner(ord.shipment?.courierPartner || 'DELHIVERY');
     setAwbNumber(ord.shipment?.awbNumber || `DEL${Date.now()}`);
     setTrackingActivity('');
+  };
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteOrder = async (ord: OrderAdminItem) => {
+    if (!confirm(`Permanently delete order ${ord.orderNumber}? This cannot be undone.`)) return;
+    setDeletingId(ord.id);
+    try {
+      const res = await fetch(`/api/orders/${ord.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setOrders(prev => prev.filter(o => o.id !== ord.id));
+        if (selectedOrder?.id === ord.id) setSelectedOrder(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete order');
+      }
+    } catch {
+      alert('Network error while deleting order');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleSaveOrderUpdates = async () => {
@@ -237,6 +259,17 @@ export default function AdminOrdersPage() {
                       >
                         Manage
                       </button>
+                      <button
+                        onClick={() => handleDeleteOrder(ord)}
+                        disabled={deletingId === ord.id}
+                        className="p-1.5 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 inline-block transition-colors"
+                        title="Delete Order"
+                      >
+                        {deletingId === ord.id
+                          ? <span className="text-[10px] text-red-500">...</span>
+                          : <Trash2 className="w-4 h-4" />
+                        }
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -355,20 +388,31 @@ export default function AdminOrdersPage() {
 
               {/* Actions footer */}
               <div className="pt-4 border-t flex items-center justify-between">
-                <Link
-                  href={`/account/orders/${selectedOrder.orderNumber}/invoice`}
-                  target="_blank"
-                  className="border border-gray-300 px-4 py-2 rounded-xl font-bold text-gray-700 hover:bg-gray-50 flex items-center space-x-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print GST Invoice</span>
-                </Link>
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href={`/account/orders/${selectedOrder.orderNumber}/invoice`}
+                    target="_blank"
+                    className="border border-gray-300 px-4 py-2 rounded-xl font-bold text-gray-700 hover:bg-gray-50 flex items-center space-x-1.5 text-xs"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print GST Invoice</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrder(selectedOrder)}
+                    disabled={deletingId === selectedOrder.id}
+                    className="border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{deletingId === selectedOrder.id ? 'Deleting...' : 'Delete Order'}</span>
+                  </button>
+                </div>
 
                 <div className="flex items-center space-x-3">
                   <button
                     type="button"
                     onClick={() => setSelectedOrder(null)}
-                    className="px-4 py-2 border rounded-xl font-semibold text-gray-600 hover:bg-gray-50"
+                    className="px-4 py-2 border rounded-xl font-semibold text-gray-600 hover:bg-gray-50 text-xs"
                   >
                     Cancel
                   </button>
@@ -376,7 +420,7 @@ export default function AdminOrdersPage() {
                     type="button"
                     onClick={handleSaveOrderUpdates}
                     disabled={updating}
-                    className="bg-[#FF7900] hover:bg-[#ea580c] text-white px-5 py-2 rounded-xl font-bold transition-colors shadow-md flex items-center space-x-1.5"
+                    className="bg-[#FF7900] hover:bg-[#ea580c] text-white px-5 py-2 rounded-xl font-bold transition-colors shadow-md flex items-center space-x-1.5 text-xs"
                   >
                     <Save className="w-4 h-4" />
                     <span>{updating ? 'Updating...' : 'Save & Sync Shipment'}</span>

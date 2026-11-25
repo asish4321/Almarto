@@ -60,10 +60,56 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
+    }
+
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user.role);
+    if (!isAdmin) {
+      return NextResponse.json({ message: 'Admin privileges required to delete orders' }, { status: 403 });
+    }
+
+    const { id } = params;
+
+    const order = await prisma.order.findFirst({
+      where: { OR: [{ id }, { orderNumber: id }] },
+      include: { items: true },
+    });
+
+    if (!order) {
+      return NextResponse.json({ message: 'Order not found' }, { status: 404 });
+    }
+
+    // Restore stock before deleting
+    for (const item of order.items) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } },
+      });
+      if (item.variantId) {
+        await prisma.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+
+    // Prisma cascades delete shipment, trackingSteps, payments, orderItems via schema relations
+    await prisma.order.delete({ where: { id: order.id } });
+
+    return NextResponse.json({ success: true, message: `Order ${order.orderNumber} deleted` });
+  } catch (error) {
+    console.error('Delete order error:', error);
+    return NextResponse.json({ message: 'Failed to delete order' }, { status: 500 });
+  }
+}
+
   try {
     const user = await getCurrentUser();
     if (!user) {

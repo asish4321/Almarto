@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePincode } from '@/context/PincodeContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { RazorpayButton } from '@/components/checkout/RazorpayButton';
 import {
   MapPin,
   CheckCircle2,
@@ -136,7 +137,7 @@ export default function CheckoutPage() {
   const [deliveryOption, setDeliveryOption] = useState<'STANDARD' | 'EXPRESS'>('STANDARD');
 
   // Step 3: Payment Method
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'CARD' | 'NETBANKING' | 'COD'>('UPI');
+  const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'COD'>('RAZORPAY');
   const [upiId, setUpiId] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -147,6 +148,13 @@ export default function CheckoutPage() {
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Called by RazorpayButton after successful payment + verification
+  const handleRazorpaySuccess = async (paymentId: string, razorpayOrderId: string, signature: string) => {
+    await placeOrder('RAZORPAY', paymentId);
+  };
+
+  const placeOrder = async (method: string, razorpayPaymentId?: string) => {
 
   // Fetch real addresses from Supabase for logged in user
   useEffect(() => {
@@ -240,6 +248,11 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (paymentMethod === 'RAZORPAY') return; // handled by RazorpayButton
+    await placeOrder('COD');
+  };
+
+  const _placeOrder = async () => {
     setErrorMessage(null);
     if (!user) {
       setErrorMessage('Please sign in to your account before placing an order.');
