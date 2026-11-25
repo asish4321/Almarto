@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   Lock,
@@ -17,20 +17,30 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export default function LoginPage() {
+export default function LoginPageWrapper() {
+  return (
+    <Suspense>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const { user, login, loginWithGoogle, sendOtp, verifyOtp } = useAuth();
 
-  // If already logged in, redirect strictly based on role
+  // If already logged in, redirect based on role or the original destination
   React.useEffect(() => {
     if (user) {
       if (user.email === 'aswak761@gmail.com' || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
         router.push('/admin');
       } else {
-        router.push('/');
+        router.push(redirectTo);
       }
     }
-  }, [user, router]);
+  }, [user, router, redirectTo]);
 
   // Mode: 'OTP' (Verification Code) or 'PASSWORD'
   const [authMode, setAuthMode] = useState<'OTP' | 'PASSWORD'>('OTP');
@@ -105,7 +115,7 @@ export default function LoginPage() {
       if (email.trim().toLowerCase() === 'aswak761@gmail.com') {
         router.push('/admin');
       } else {
-        router.push('/');
+        router.push(redirectTo);
       }
     } else {
       setErrorMsg(res.message || 'Invalid verification code. Please check and try again.');
@@ -126,7 +136,7 @@ export default function LoginPage() {
       if (email.trim().toLowerCase() === 'aswak761@gmail.com') {
         router.push('/admin');
       } else {
-        router.push('/');
+        router.push(redirectTo);
       }
     } else {
       if (res.needsVerification) {
