@@ -143,6 +143,7 @@ export default function CheckoutPage() {
   const [captchaInput, setCaptchaInput] = useState('');
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false); // prevents cart-empty redirect after order
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Called by RazorpayButton after successful payment + verification
@@ -175,8 +176,10 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (res.ok && data.orderNumber) {
-        clearCart();
-        router.push(`/order-success/${data.orderNumber}`);
+        // Set flag BEFORE clearing cart to prevent empty-cart redirect
+        setOrderPlaced(true);
+        router.replace(`/order-success/${data.orderNumber}`);
+        setTimeout(() => clearCart(), 800);
       } else {
         setErrorMessage(data.message || 'Failed to place order. Please try again.');
       }
@@ -237,12 +240,12 @@ export default function CheckoutPage() {
     }
   }, [user, pincode, pincodeInfo]);
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty — but NOT after order is placed
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !orderPlaced) {
       router.push('/cart');
     }
-  }, [items, router]);
+  }, [items, router, orderPlaced]);
 
   const deliveryFee = deliveryOption === 'EXPRESS' ? 99 : subtotal < 499 ? 49 : 0;
   const finalPayable = Math.max(0, subtotal - couponDiscount + deliveryFee);
