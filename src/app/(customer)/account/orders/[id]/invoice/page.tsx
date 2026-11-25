@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams } from 'next/navigation';
-import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { Printer, ArrowLeft, ShieldCheck, Lock } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface InvoiceOrder {
   id: string;
@@ -34,22 +35,45 @@ interface InvoiceOrder {
 
 export default function InvoicePage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
+  const { user, loading: authLoading } = useAuth();
   const [order, setOrder] = useState<InvoiceOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Only admins and staff can view invoices
+  const isStaff = user && ['SUPER_ADMIN', 'ADMIN', 'ORDER_MANAGER', 'FINANCE_MANAGER'].includes(user.role);
+
   useEffect(() => {
+    if (authLoading) return;
+    if (!isStaff) return; // Don't fetch if not admin
     fetch(`/api/orders/${id}`)
       .then((res) => res.json())
-      .then((data) => {
-        if (data.order) setOrder(data.order);
-      })
+      .then((data) => { if (data.order) setOrder(data.order); })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isStaff, authLoading]);
 
-  if (loading) {
-    return <div className="p-12 text-center text-sm">Generating tax invoice...</div>;
+  // Block non-admin customers
+  if (!authLoading && !isStaff) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+          <Lock className="w-8 h-8 text-gray-400" />
+        </div>
+        <h2 className="text-xl font-black text-[#1B2721]">Invoice Not Available</h2>
+        <p className="text-sm text-gray-500 max-w-xs">
+          Tax invoices are managed by the Almarto team. For invoice queries, contact us at almarto14@gmail.com
+        </p>
+        <Link href="/account/orders" className="bg-[#2E4A3E] text-white px-6 py-2.5 rounded-xl font-bold text-sm">
+          View My Orders
+        </Link>
+      </div>
+    );
+  }
+
+  if (authLoading || loading) {
+    return <div className="p-12 text-center text-sm text-gray-400">Loading invoice...</div>;
   }
 
   if (!order) {
@@ -60,7 +84,7 @@ export default function InvoicePage() {
     ? JSON.parse(order.shippingAddressSnapshot)
     : null;
 
-  const isIntrastate = shippingAddress?.state?.toLowerCase().includes('karnataka');
+  const isIntrastate = shippingAddress?.state?.toLowerCase().includes('telangana');
 
   return (
     <div className="bg-gray-100 min-h-screen py-8 px-4">

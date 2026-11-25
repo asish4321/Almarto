@@ -197,13 +197,6 @@ export default function MyOrdersPage() {
 
                 <div className="flex items-center space-x-3">
                   {getStatusBadge(order.status)}
-                  <Link
-                    href={`/account/orders/${order.orderNumber}/invoice`}
-                    className="text-xs font-semibold text-[#35109B] hover:underline flex items-center space-x-1"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Invoice</span>
-                  </Link>
                 </div>
               </div>
 
