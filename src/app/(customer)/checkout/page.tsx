@@ -294,8 +294,10 @@ export default function CheckoutPage() {
   return (
     <>
     {(authLoading || !user) && (
-      <div className="container mx-auto px-4 py-24 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#2E4A3E] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-center px-4">
+        <div className="w-12 h-12 rounded-full border-4 border-[#DFE8DD] border-t-[#2E4A3E] animate-spin" />
+        <p className="text-sm font-bold text-[#2E4A3E]">Logging you in...</p>
+        <p className="text-xs text-gray-400">Setting up your checkout, please wait</p>
       </div>
     )}
     {user && (
