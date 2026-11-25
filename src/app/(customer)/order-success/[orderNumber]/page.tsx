@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { CheckCircle2, Truck, MapPin, Sparkles, ShoppingBag, Package } from 'lucide-react';
+import { useCart } from '@/context/CartContext';
 
 interface OrderData {
   orderNumber: string;
@@ -18,15 +19,18 @@ interface OrderData {
 export default function OrderSuccessPage() {
   const params = useParams();
   const orderNumber = params.orderNumber as string;
+  const { clearCart } = useCart();
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [confetti, setConfetti] = useState(true);
 
-  // Fetch order details in background — celebration shows immediately from URL
   useEffect(() => {
+    // Clear cart when success page loads — this is the definitive clear
+    clearCart();
+
     const stop = setTimeout(() => setConfetti(false), 4000);
 
-    // Try fetching with retry (order might take a moment to persist)
+    // Fetch order details with retry
     let tries = 0;
     const tryFetch = () => {
       fetch(`/api/orders/${orderNumber}`)
@@ -34,19 +38,19 @@ export default function OrderSuccessPage() {
         .then(data => {
           if (data?.order) {
             setOrder(data.order);
-          } else if (tries < 3) {
+          } else if (tries < 4) {
             tries++;
             setTimeout(tryFetch, 1500);
           }
         })
         .catch(() => {
-          if (tries < 3) { tries++; setTimeout(tryFetch, 1500); }
+          if (tries < 4) { tries++; setTimeout(tryFetch, 1500); }
         });
     };
     tryFetch();
 
     return () => clearTimeout(stop);
-  }, [orderNumber]);
+  }, [orderNumber]); // eslint-disable-line
 
   const shippingAddress = order?.shippingAddressSnapshot
     ? JSON.parse(order.shippingAddressSnapshot)

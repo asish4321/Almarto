@@ -178,8 +178,14 @@ export default function CheckoutPage() {
       if (res.ok && data.orderNumber) {
         // Set flag BEFORE clearing cart to prevent empty-cart redirect
         setOrderPlaced(true);
+        // Store order number so success page can read it even if cart clears
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('last_order_number', data.orderNumber);
+        }
+        // Navigate immediately — clear cart only after navigation is complete
         router.replace(`/order-success/${data.orderNumber}`);
-        setTimeout(() => clearCart(), 800);
+        // Delay cart clear long enough for the new page to fully load
+        setTimeout(() => clearCart(), 2000);
       } else {
         setErrorMessage(data.message || 'Failed to place order. Please try again.');
       }
