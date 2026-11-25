@@ -61,6 +61,10 @@ export default function RegisterPage() {
       setErrorMsg('Please enter a valid email address.');
       return;
     }
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number.');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -238,18 +242,22 @@ export default function RegisterPage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Mobile Number (Optional)
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="tel"
+                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. 9123456789"
+                    pattern="[0-9]{10}"
+                    title="Please enter a valid 10-digit mobile number"
                     className="w-full pl-10 pr-3 py-2.5 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#35109B]"
                   />
                   <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
                 </div>
+                <p className="text-[11px] text-gray-400 mt-1">Required for order updates &amp; delivery alerts</p>
               </div>
 
               <button

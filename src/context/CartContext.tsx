@@ -24,9 +24,12 @@ interface CartContextType {
   removeCoupon: () => void;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
+  loginRequired: boolean;
+  setLoginRequired: (v: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   // Start empty on server; hydrate from localStorage after mount to avoid SSR mismatch
@@ -34,6 +37,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponType | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [loginRequired, setLoginRequired] = useState(false);
 
   useEffect(() => {
     try {
@@ -67,6 +71,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [appliedCoupon]);
 
   const addToCart = (product: ProductItem, quantity = 1, variant: ProductVariantItem | null = null) => {
+    // Check if user is stored in localStorage (set by AuthContext after login)
+    const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('almarto_user');
+    if (!isLoggedIn) {
+      setLoginRequired(true);
+      return;
+    }
     setItems((prev) => {
       const existingIndex = prev.findIndex(
         (item) => item.productId === product.id && (item.variantId || null) === (variant?.id || null)
@@ -211,6 +221,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeCoupon,
         isCartOpen,
         setIsCartOpen,
+        loginRequired,
+        setLoginRequired,
       }}
     >
       {children}

@@ -9,13 +9,15 @@ interface WishlistContextType {
   isInWishlist: (productId: string) => boolean;
   toggleWishlist: (product: ProductItem) => void;
   removeFromWishlist: (productId: string) => void;
+  loginRequired: boolean;
+  setLoginRequired: (v: boolean) => void;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-  // Start empty on server; hydrate from localStorage after mount to avoid SSR mismatch
   const [items, setItems] = useState<ProductItem[]>([]);
+  const [loginRequired, setLoginRequired] = useState(false);
 
   useEffect(() => {
     try {
@@ -27,40 +29,33 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem('almarto_wishlist', JSON.stringify(items));
-    } catch (e) {
-      console.error('Failed to save wishlist', e);
-    }
+    } catch { /* ignore */ }
   }, [items]);
 
-  const isInWishlist = (productId: string) => {
-    return items.some((item) => item.id === productId);
-  };
+  const isInWishlist = (productId: string) => items.some(i => i.id === productId);
 
   const toggleWishlist = (product: ProductItem) => {
-    setItems((prev) => {
-      const exists = prev.some((item) => item.id === product.id);
-      if (exists) {
-        return prev.filter((item) => item.id !== product.id);
-      } else {
-        return [...prev, product];
-      }
+    const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('almarto_user');
+    if (!isLoggedIn) {
+      setLoginRequired(true);
+      return;
+    }
+    setItems(prev => {
+      const exists = prev.some(i => i.id === product.id);
+      return exists ? prev.filter(i => i.id !== product.id) : [...prev, product];
     });
   };
 
   const removeFromWishlist = (productId: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== productId));
+    setItems(prev => prev.filter(i => i.id !== productId));
   };
 
   return (
-    <WishlistContext.Provider
-      value={{
-        items,
-        itemCount: items.length,
-        isInWishlist,
-        toggleWishlist,
-        removeFromWishlist,
-      }}
-    >
+    <WishlistContext.Provider value={{
+      items, itemCount: items.length,
+      isInWishlist, toggleWishlist, removeFromWishlist,
+      loginRequired, setLoginRequired,
+    }}>
       {children}
     </WishlistContext.Provider>
   );
@@ -68,8 +63,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
 export function useWishlist() {
   const context = useContext(WishlistContext);
-  if (!context) {
-    throw new Error('useWishlist must be used within a WishlistProvider');
-  }
+  if (!context) throw new Error('useWishlist must be used within a WishlistProvider');
   return context;
 }

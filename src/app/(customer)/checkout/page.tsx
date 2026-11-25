@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePincode } from '@/context/PincodeContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import {
   MapPin,
   CheckCircle2,
@@ -41,7 +42,7 @@ interface AddressForm {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useRequireAuth('/checkout');
   const { items, subtotal, mrpTotal, couponDiscount, grandTotal, appliedCoupon, clearCart, applyCoupon, removeCoupon } = useCart();
   const { pincode, pincodeInfo } = usePincode();
 
@@ -291,6 +292,13 @@ export default function CheckoutPage() {
   };
 
   return (
+    <>
+    {(authLoading || !user) && (
+      <div className="container mx-auto px-4 py-24 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#2E4A3E] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )}
+    {user && (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="flex items-center space-x-2 text-xs text-gray-500 mb-6">
         <Link href="/cart" className="hover:text-[#35109B]">Cart</Link>
@@ -935,5 +943,7 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+    )}
+    </>
   );
 }

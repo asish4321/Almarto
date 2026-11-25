@@ -3,6 +3,7 @@ import { Header } from '@/components/common/Header';
 import { Footer } from '@/components/common/Footer';
 import { PincodeModal } from '@/components/common/PincodeModal';
 import { BottomNav } from '@/components/common/BottomNav';
+import { AuthGate } from '@/components/common/AuthGate';
 import { getThemeById, generateCssVariables, ThemeStyles } from '@/lib/themes';
 
 // In-memory fallback that survives across requests in the same process
@@ -82,11 +83,11 @@ export default async function CustomerLayout({
     <div className="flex flex-col min-h-screen text-[#1B2721]" style={{ backgroundColor: 'var(--theme-bg, #EFE9DF)' }}>
       <style id="almarto-dynamic-theme" dangerouslySetInnerHTML={{ __html: dynamicCss }} />
       <Header initialSettings={settingsMap} categories={categories} />
-      {/* pb-16 on mobile gives space above the fixed bottom nav */}
       <main className="flex-1 w-full pb-16 md:pb-0" style={{ backgroundColor: 'var(--theme-bg, #EFE9DF)' }}>{children}</main>
       <div className="hidden md:block"><Footer initialSettings={settingsMap} /></div>
       <BottomNav />
       <PincodeModal />
+      <AuthGate />
     </div>
   );
 }

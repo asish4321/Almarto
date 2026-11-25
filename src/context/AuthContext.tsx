@@ -40,8 +40,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+        if (data.user) {
+          localStorage.setItem('almarto_user', '1');
+        } else {
+          localStorage.removeItem('almarto_user');
+        }
       } else {
         setUser(null);
+        localStorage.removeItem('almarto_user');
       }
     } catch {
       setUser(null);
@@ -284,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      localStorage.removeItem('almarto_user');
       window.location.href = '/';
     } catch (err) {
       console.error('Logout error:', err);

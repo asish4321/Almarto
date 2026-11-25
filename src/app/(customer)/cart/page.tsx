@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { usePincode } from '@/context/PincodeContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import {
   Trash2,
   Plus,
@@ -21,6 +22,7 @@ import {
 
 export default function CartPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useRequireAuth('/cart');
   const {
     items,
     totalItemCount,
@@ -59,6 +61,14 @@ export default function CartPage() {
       setCouponFeedback({ text: res.message, isError: true });
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="container mx-auto px-4 py-24 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#2E4A3E] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
