@@ -21,10 +21,12 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
 
   const isLiked = isInWishlist(product.id);
   const primaryImage = product.images?.[0]?.url || null;
+  const isOutOfStock = (product.stock ?? 0) <= 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isOutOfStock) return;
     addToCart(product, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
@@ -205,7 +207,7 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
               alt={product.title}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-contain p-2 sm:p-4 group-hover:scale-105 transition-transform duration-300"
+              className={`object-contain p-2 sm:p-4 transition-transform duration-300 ${isOutOfStock ? 'opacity-50 grayscale' : 'group-hover:scale-105'}`}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#E8EFE6] to-[#FAF7F2] text-center p-3">
@@ -215,14 +217,23 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
           )}
         </Link>
 
+        {/* Out of stock overlay */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-t-xl">
+            <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-wider">
+              Out of Stock
+            </span>
+          </div>
+        )}
+
         {/* Discount badge */}
-        {product.discountPercent > 0 && (
+        {!isOutOfStock && product.discountPercent > 0 && (
           <span className="absolute top-1.5 left-1.5 bg-[#527863] text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">
             {product.discountPercent}% OFF
           </span>
         )}
 
-        {product.isDealOfTheDay && (
+        {product.isDealOfTheDay && !isOutOfStock && (
           <span className="absolute bottom-1.5 left-1.5 bg-[#2E4A3E] text-[#FAF7F2] text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 shadow-sm">
             <Zap className="w-2.5 h-2.5 text-[#A3B18A] fill-[#A3B18A]" />
             <span>Deal</span>
@@ -295,25 +306,37 @@ export function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
 
           {/* Buttons */}
           {/* Mobile: single full-width Add button */}
-          <button
-            onClick={handleAddToCart}
-            className={`sm:hidden w-full py-1.5 rounded-lg font-bold text-[11px] flex items-center justify-center space-x-1 transition-all ${
-              added ? 'bg-emerald-600 text-white' : 'bg-[#2E4A3E] text-[#FAF7F2]'
-            }`}
-          >
-            {added ? <><Check className="w-3 h-3" /><span>Added!</span></> : <><ShoppingCart className="w-3 h-3" /><span>Add to Cart</span></>}
-          </button>
+          {isOutOfStock ? (
+            <div className="sm:hidden w-full py-1.5 rounded-lg font-bold text-[11px] flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed">
+              Out of Stock
+            </div>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              className={`sm:hidden w-full py-1.5 rounded-lg font-bold text-[11px] flex items-center justify-center space-x-1 transition-all ${
+                added ? 'bg-emerald-600 text-white' : 'bg-[#2E4A3E] text-[#FAF7F2]'
+              }`}
+            >
+              {added ? <><Check className="w-3 h-3" /><span>Added!</span></> : <><ShoppingCart className="w-3 h-3" /><span>Add to Cart</span></>}
+            </button>
+          )}
 
           {/* Desktop: two-button row */}
           <div className="hidden sm:grid grid-cols-2 gap-1.5">
-            <button
-              onClick={handleAddToCart}
-              className={`py-2 px-2 rounded-xl font-extrabold text-[11px] flex items-center justify-center space-x-1 shadow-sm transition-all ${
-                added ? 'bg-emerald-600 text-white' : 'bg-[#2E4A3E] hover:bg-[#22382F] text-[#FAF7F2]'
-              }`}
-            >
-              {added ? <><Check className="w-3.5 h-3.5" /><span>Added!</span></> : <><ShoppingCart className="w-3.5 h-3.5" /><span>Add {quantity > 1 ? `(${quantity})` : ''}</span></>}
-            </button>
+            {isOutOfStock ? (
+              <div className="py-2 px-2 rounded-xl font-extrabold text-[11px] flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed col-span-1">
+                Out of Stock
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className={`py-2 px-2 rounded-xl font-extrabold text-[11px] flex items-center justify-center space-x-1 shadow-sm transition-all ${
+                  added ? 'bg-emerald-600 text-white' : 'bg-[#2E4A3E] hover:bg-[#22382F] text-[#FAF7F2]'
+                }`}
+              >
+                {added ? <><Check className="w-3.5 h-3.5" /><span>Added!</span></> : <><ShoppingCart className="w-3.5 h-3.5" /><span>Add {quantity > 1 ? `(${quantity})` : ''}</span></>}
+              </button>
+            )}
             <Link
               href={`/products/${product.slug}`}
               className="py-2 px-2 rounded-xl border border-[#DFE5DC] text-[#2E4A3E] bg-[#E8EFE6]/70 hover:bg-[#2E4A3E] hover:text-[#FAF7F2] font-extrabold text-[11px] flex items-center justify-center space-x-1 transition-all group/btn"
