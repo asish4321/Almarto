@@ -7,5 +7,11 @@ const supabaseAnonKey =
   '';
 
 export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Allow 5 minute clock skew between client and Supabase servers
+        // This fixes "Session issued in the future" warnings on devices with slightly off clocks
+        flowType: 'pkce',
+      },
+    })
   : null;

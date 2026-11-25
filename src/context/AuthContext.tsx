@@ -61,10 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Only wire up supabase auth listener after initial user check
     let unsubscribe: (() => void) | null = null;
+    let syncing = false; // prevent concurrent sync calls
     getSupabase().then((supabase) => {
       if (!supabase) return;
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+        // Only act on actual sign-in events, not token refreshes with clock skew
+        if (event === 'SIGNED_IN' && session?.user && !syncing) {
+          syncing = true;
           try {
             await fetch('/api/auth/sync-session', {
               method: 'POST',
@@ -77,13 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 avatarUrl: session.user.user_metadata?.avatar_url,
               }),
             });
-            fetchCurrentUser();
+            await fetchCurrentUser();
           } catch (err) {
             console.error('Error syncing onAuthStateChange:', err);
+          } finally {
+            syncing = false;
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          localStorage.removeItem('almarto_user');
         }
+        // Ignore TOKEN_REFRESHED, INITIAL_SESSION etc. to avoid loops
       });
       unsubscribe = () => authListener.subscription.unsubscribe();
     });

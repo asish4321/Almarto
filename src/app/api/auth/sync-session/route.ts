@@ -11,35 +11,40 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-
     const isOwner = cleanEmail === 'aswak761@gmail.com';
 
-    let user = await prisma.user.upsert({
-      where: { email: cleanEmail },
-      update: {
-        ...(name ? { name } : {}),
-        ...(phone ? { phone } : {}),
-        ...(isOwner ? { role: 'SUPER_ADMIN' } : {}),
-      },
-      create: {
-        email: cleanEmail,
-        name: name || cleanEmail.split('@')[0],
-        phone: phone || null,
-        passwordHash: 'supabase_auth_' + (supabaseId || Date.now()),
-        role: isOwner ? 'SUPER_ADMIN' : 'CUSTOMER',
-        profile: {
-          create: {
-            loyaltyPoints: 100, // 100 Welcome SuperCoins
-            avatar: avatarUrl || null,
+    let user;
+    try {
+      user = await prisma.user.upsert({
+        where: { email: cleanEmail },
+        update: {
+          ...(name ? { name } : {}),
+          ...(phone ? { phone } : {}),
+          ...(isOwner ? { role: 'SUPER_ADMIN' } : {}),
+        },
+        create: {
+          email: cleanEmail,
+          name: name || cleanEmail.split('@')[0],
+          phone: phone || null,
+          passwordHash: 'supabase_auth_' + (supabaseId || Date.now()),
+          role: isOwner ? 'SUPER_ADMIN' : 'CUSTOMER',
+          profile: {
+            create: {
+              loyaltyPoints: 100,
+              avatar: avatarUrl || null,
+            },
           },
         },
-      },
-      include: { profile: true },
-    });
+        include: { profile: true },
+      });
+    } catch (dbErr) {
+      console.error('DB upsert error in sync-session:', dbErr);
+      return NextResponse.json({ message: 'Database error during session sync' }, { status: 500 });
+    }
 
     if (user.isBlocked) {
       return NextResponse.json(
-        { message: 'This account has been suspended by administration.' },
+        { message: 'This account has been suspended.' },
         { status: 403 }
       );
     }
