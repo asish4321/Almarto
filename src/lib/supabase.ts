@@ -9,9 +9,20 @@ const supabaseAnonKey =
 export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        // Allow 5 minute clock skew between client and Supabase servers
-        // This fixes "Session issued in the future" warnings on devices with slightly off clocks
         flowType: 'pkce',
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
       },
     })
   : null;
+
+// Auto-clear stale sessions that cause 400 on refresh
+if (supabase && typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED' && !session) {
+      // Refresh failed — clear stale tokens silently
+      supabase.auth.signOut().catch(() => {});
+    }
+  });
+}

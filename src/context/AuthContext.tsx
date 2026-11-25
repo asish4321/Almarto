@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('almarto_user');
         }
       } else {
+        // 4xx means session is invalid — clear it
         setUser(null);
         localStorage.removeItem('almarto_user');
       }
