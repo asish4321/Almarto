@@ -17,16 +17,12 @@ import {
   ChevronRight,
   Plus,
   Lock,
-  Smartphone,
-  Banknote,
-  Building2,
   AlertCircle,
   Tag,
   XCircle,
   Navigation,
   Loader2,
   Home,
-  Compass,
 } from 'lucide-react';
 
 interface AddressForm {
@@ -155,6 +151,41 @@ export default function CheckoutPage() {
   };
 
   const placeOrder = async (method: string, razorpayPaymentId?: string) => {
+    setErrorMessage(null);
+    if (!user) { setErrorMessage('Please sign in to place an order.'); return; }
+    const activeAddress = savedAddresses[selectedAddressIndex];
+    if (!activeAddress) { setErrorMessage('Please save a delivery address first.'); return; }
+    if (method === 'COD' && captchaInput !== captchaCode) {
+      setErrorMessage('Please enter the correct 4-digit security code for COD.');
+      return;
+    }
+    setIsPlacingOrder(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, image: i.image })),
+          shippingAddress: activeAddress,
+          paymentMethod: method,
+          deliveryOption,
+          couponCode: appliedCoupon?.code,
+          razorpayPaymentId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.orderNumber) {
+        clearCart();
+        router.push(`/order-success/${data.orderNumber}`);
+      } else {
+        setErrorMessage(data.message || 'Failed to place order. Please try again.');
+      }
+    } catch {
+      setErrorMessage('Network error. Please try again.');
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
 
   // Fetch real addresses from Supabase for logged in user
   useEffect(() => {
@@ -250,58 +281,6 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (paymentMethod === 'RAZORPAY') return; // handled by RazorpayButton
     await placeOrder('COD');
-  };
-
-  const _placeOrder = async () => {
-    setErrorMessage(null);
-    if (!user) {
-      setErrorMessage('Please sign in to your account before placing an order.');
-      return;
-    }
-
-    const activeAddress = savedAddresses[selectedAddressIndex];
-    if (!activeAddress) {
-      setErrorMessage('Please enter and save a delivery address before placing an order.');
-      return;
-    }
-
-    if (paymentMethod === 'COD' && captchaInput !== captchaCode) {
-      setErrorMessage('Please enter the correct 4-digit security code for Cash on Delivery confirmation.');
-      return;
-    }
-
-    setIsPlacingOrder(true);
-    try {
-      const activeAddress = savedAddresses[selectedAddressIndex];
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map((i) => ({
-            productId: i.productId,
-            variantId: i.variantId,
-            quantity: i.quantity,
-            image: i.image,
-          })),
-          shippingAddress: activeAddress,
-          paymentMethod,
-          deliveryOption,
-          couponCode: appliedCoupon?.code,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.orderNumber) {
-        clearCart();
-        router.push(`/order-success/${data.orderNumber}`);
-      } else {
-        setErrorMessage(data.message || 'Failed to place order. Please try again.');
-      }
-    } catch {
-      setErrorMessage('Network error while placing order. Please try again.');
-    } finally {
-      setIsPlacingOrder(false);
-    }
   };
 
   return (
@@ -621,214 +600,63 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* STEP 3: Payment Options (UPI, Card, NetBanking, COD) */}
+          {/* STEP 3: Payment Method — Razorpay or COD */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm space-y-4">
             <div className="flex items-center space-x-2 pb-3 border-b border-gray-100">
-              <span className="w-6 h-6 rounded-full bg-[#35109B] text-white text-xs font-bold flex items-center justify-center">
-                3
-              </span>
+              <span className="w-6 h-6 rounded-full bg-[#2E4A3E] text-white text-xs font-bold flex items-center justify-center">3</span>
               <h2 className="font-bold text-base text-[#19152B]">Select Payment Method</h2>
             </div>
-
             <div className="space-y-3">
-              {/* 1. UPI */}
-              <label
-                className={`block p-4 rounded-xl border cursor-pointer transition-all ${
-                  paymentMethod === 'UPI'
-                    ? 'border-[#35109B] bg-[#F2EFFF] ring-2 ring-[#35109B]/20'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+
+              {/* Razorpay */}
+              <label className={`block p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'RAZORPAY' ? 'border-[#2E4A3E] bg-[#DFE8DD] ring-2 ring-[#2E4A3E]/20' : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      name="paymentRadio"
-                      checked={paymentMethod === 'UPI'}
-                      onChange={() => setPaymentMethod('UPI')}
-                      className="text-[#35109B]"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Smartphone className="w-4 h-4 text-[#35109B]" />
-                      <span className="font-bold text-xs text-[#19152B]">UPI (Google Pay, PhonePe, Paytm, BHIM)</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Fastest &amp; Instant
-                  </span>
-                </div>
-
-                {paymentMethod === 'UPI' && (
-                  <div className="mt-3 pt-3 border-t border-purple-200/60 pl-6">
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Enter your UPI ID / VPA</label>
-                    <div className="flex max-w-sm space-x-2">
-                      <input
-                        type="text"
-                        value={upiId}
-                        onChange={(e) => setUpiId(e.target.value)}
-                        placeholder="yourname@okhdfcbank"
-                        className="flex-1 p-2 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                      />
-                      <span className="text-xs font-semibold text-emerald-700 self-center">✓ Verified</span>
-                    </div>
-                  </div>
-                )}
-              </label>
-
-              {/* 2. Credit / Debit Card */}
-              <label
-                className={`block p-4 rounded-xl border cursor-pointer transition-all ${
-                  paymentMethod === 'CARD'
-                    ? 'border-[#35109B] bg-[#F2EFFF] ring-2 ring-[#35109B]/20'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      name="paymentRadio"
-                      checked={paymentMethod === 'CARD'}
-                      onChange={() => setPaymentMethod('CARD')}
-                      className="text-[#35109B]"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <CreditCard className="w-4 h-4 text-[#35109B]" />
-                      <span className="font-bold text-xs text-[#19152B]">Credit / Debit / ATM Card</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-gray-500">Visa, MasterCard, RuPay</span>
-                </div>
-
-                {paymentMethod === 'CARD' && (
-                  <div className="mt-3 pt-3 border-t border-purple-200/60 pl-6 space-y-2.5 max-w-sm">
+                    <input type="radio" name="paymentRadio" checked={paymentMethod === 'RAZORPAY'} onChange={() => setPaymentMethod('RAZORPAY')} className="text-[#2E4A3E]" />
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-700 mb-0.5">Card Number</label>
-                      <input
-                        type="text"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="4532 •••• •••• 8892"
-                        className="w-full p-2 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-0.5">Valid Thru (MM/YY)</label>
-                        <input
-                          type="text"
-                          maxLength={5}
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="12/28"
-                          className="w-full p-2 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-0.5">CVV</label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="•••"
-                          className="w-full p-2 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                        />
-                      </div>
+                      <span className="font-bold text-xs text-[#19152B] block">Pay Online via Razorpay</span>
+                      <span className="text-[11px] text-gray-500">UPI · Cards · Net Banking · Wallets · EMI</span>
                     </div>
                   </div>
-                )}
-              </label>
-
-              {/* 3. Net Banking */}
-              <label
-                className={`block p-4 rounded-xl border cursor-pointer transition-all ${
-                  paymentMethod === 'NETBANKING'
-                    ? 'border-[#35109B] bg-[#F2EFFF] ring-2 ring-[#35109B]/20'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="radio"
-                    name="paymentRadio"
-                    checked={paymentMethod === 'NETBANKING'}
-                    onChange={() => setPaymentMethod('NETBANKING')}
-                    className="text-[#35109B]"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <Building2 className="w-4 h-4 text-[#35109B]" />
-                    <span className="font-bold text-xs text-[#19152B]">Net Banking</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Secure</span>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Instant</span>
                   </div>
                 </div>
-
-                {paymentMethod === 'NETBANKING' && (
-                  <div className="mt-3 pt-3 border-t border-purple-200/60 pl-6 max-w-sm">
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Select Bank</label>
-                    <select
-                      value={selectedBank}
-                      onChange={(e) => setSelectedBank(e.target.value)}
-                      className="w-full p-2 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                    >
-                      <option value="HDFC">HDFC Bank</option>
-                      <option value="ICICI">ICICI Bank</option>
-                      <option value="SBI">State Bank of India</option>
-                      <option value="AXIS">Axis Bank</option>
-                      <option value="KOTAK">Kotak Mahindra Bank</option>
-                    </select>
+                {paymentMethod === 'RAZORPAY' && (
+                  <div className="mt-3 pt-3 border-t border-[#DFE8DD] pl-6 flex flex-wrap gap-2">
+                    {['GPay','PhonePe','Paytm','Visa','Mastercard','RuPay','UPI'].map(m => (
+                      <span key={m} className="text-[10px] font-bold bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{m}</span>
+                    ))}
                   </div>
                 )}
               </label>
 
-              {/* 4. Cash on Delivery (COD) */}
-              <label
-                className={`block p-4 rounded-xl border cursor-pointer transition-all ${
-                  paymentMethod === 'COD'
-                    ? 'border-[#35109B] bg-[#F2EFFF] ring-2 ring-[#35109B]/20'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+              {/* COD */}
+              <label className={`block p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'COD' ? 'border-[#2E4A3E] bg-[#DFE8DD] ring-2 ring-[#2E4A3E]/20' : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      name="paymentRadio"
-                      checked={paymentMethod === 'COD'}
-                      onChange={() => setPaymentMethod('COD')}
-                      className="text-[#35109B]"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <Banknote className="w-4 h-4 text-[#35109B]" />
-                      <span className="font-bold text-xs text-[#19152B]">Cash on Delivery (Pay at Doorstep)</span>
+                    <input type="radio" name="paymentRadio" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} className="text-[#2E4A3E]" />
+                    <div>
+                      <span className="font-bold text-xs text-[#19152B] block">Cash on Delivery</span>
+                      <span className="text-[11px] text-gray-500">Pay at doorstep when order arrives</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-gray-500">Verified PIN</span>
+                  <span className="text-[10px] text-gray-500 font-semibold">+₹0 extra</span>
                 </div>
-
                 {paymentMethod === 'COD' && (
-                  <div className="mt-3 pt-3 border-t border-purple-200/60 pl-6 max-w-sm">
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                      Enter the 4-digit code shown below to confirm COD order:
-                    </label>
+                  <div className="mt-3 pt-3 border-t border-[#DFE8DD] pl-6 max-w-xs">
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Enter the 4-digit security code to confirm:</label>
                     <div className="flex items-center space-x-3">
-                      <span className="px-3 py-1.5 bg-gray-200 text-gray-800 font-mono font-black text-sm tracking-widest rounded select-none">
-                        {captchaCode}
-                      </span>
-                      <input
-                        type="text"
-                        maxLength={4}
-                        value={captchaInput}
-                        onChange={(e) => setCaptchaInput(e.target.value)}
-                        placeholder="Enter 7842"
-                        className="w-28 p-2 text-xs border rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-[#35109B]"
-                      />
+                      <span className="px-3 py-1.5 bg-gray-200 text-gray-800 font-mono font-black text-sm tracking-widest rounded select-none">{captchaCode}</span>
+                      <input type="text" maxLength={4} value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Enter code"
+                        className="w-28 p-2 text-xs border rounded-lg font-mono font-bold focus:outline-none focus:ring-1 focus:ring-[#2E4A3E]" />
                     </div>
                   </div>
                 )}
               </label>
             </div>
-          </div>
+          </div>          </div>
         </div>
 
         {/* Right Order Summary & Confirm (4 cols) */}
@@ -932,20 +760,34 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <button
-              onClick={handlePlaceOrder}
-              disabled={isPlacingOrder}
-              className="w-full py-4 bg-[#FF7900] hover:bg-[#ea580c] disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center space-x-2"
-            >
-              {isPlacingOrder ? (
-                <span>Confirming Order...</span>
-              ) : (
-                <>
-                  <ShieldCheck className="w-5 h-5" />
-                  <span>Place Order • ₹{finalPayable.toLocaleString('en-IN')}</span>
-                </>
-              )}
-            </button>
+            {/* Payment buttons — Razorpay or COD */}
+            {paymentMethod === 'RAZORPAY' ? (
+              <RazorpayButton
+                amount={finalPayable}
+                orderNote={`ALMARTO Order — ${items.length} item(s)`}
+                userName={user?.name}
+                userEmail={user?.email}
+                userPhone={user?.phone || undefined}
+                disabled={!savedAddresses[selectedAddressIndex]}
+                onSuccess={handleRazorpaySuccess}
+                onFailure={(err) => setErrorMessage(err)}
+              />
+            ) : (
+              <button
+                onClick={handlePlaceOrder}
+                disabled={isPlacingOrder}
+                className="w-full py-4 bg-[#FF7900] hover:bg-[#ea580c] disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center space-x-2"
+              >
+                {isPlacingOrder ? (
+                  <span>Confirming Order...</span>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-5 h-5" />
+                    <span>Place COD Order • ₹{finalPayable.toLocaleString('en-IN')}</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <div className="p-3 bg-gray-50 rounded-xl text-[11px] text-gray-500 space-y-1">
               <p className="flex items-center space-x-1 text-emerald-700 font-semibold">
