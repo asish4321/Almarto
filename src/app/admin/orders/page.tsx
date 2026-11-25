@@ -406,6 +406,25 @@ export default function AdminOrdersPage() {
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>{deletingId === selectedOrder.id ? 'Deleting...' : 'Delete Order'}</span>
                   </button>
+                  {selectedOrder.shipment && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`Delete shipment & tracking history for ${selectedOrder.orderNumber}?`)) return;
+                        const res = await fetch(`/api/orders/${selectedOrder.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'DELETE_SHIPMENT' }),
+                        });
+                        if (res.ok) { setSelectedOrder(null); fetchOrders(); }
+                        else alert('Failed to delete shipment');
+                      }}
+                      className="border border-orange-200 text-orange-600 hover:bg-orange-50 px-4 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-colors"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Delete Shipment</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-3">
