@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dynamic Theme Variables - Default: Pale Sage, Warm Biscuit & Muted Forest Sage */
+  --primary-color: #2E4A3E;
+  --primary-hover: #22382F;
+  --primary-light: #DFE8DD;
+  --accent-color: #527863;
+  --accent-hover: #3E5C4B;
+  --accent-light: #E8EFE6;
+  --theme-bg: #EFE9DF;
+  --theme-surface: #FAF6F0;
+  --theme-card-bg: #FAF6F0;
+  --theme-text: #1B2721;
+  --theme-muted: #5F6E66;
+  --theme-border: #DED6C7;
+  --theme-header-bg: linear-gradient(135deg, #1E332B 0%, #2E4A3E 50%, #3B5A4D 100%);
+  --theme-header-text: #FAF6F0;
+
+  /* Backward Compatibility Aliases */
+  --brand-purple: var(--primary-color);
+  --brand-orange: var(--accent-color);
+  --brand-bg: var(--theme-bg);
+  --brand-text: var(--theme-text);
+  --brand-muted: var(--theme-muted);
+  --brand-border: var(--theme-border);
+}
+
+body {
+  color: var(--theme-text);
+  background-color: var(--theme-bg, #EFE9DF);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dynamic theme overrides for legacy hardcoded colors */
+[class*="bg-[#35109B]"],
+.bg-\[\#35109B\] {
+  background: var(--theme-header-bg, var(--primary-color)) !important;
+}
+
+[class*="bg-[#1A0553]"],
+.bg-\[\#1A0553\] {
+  background: #182922 !important;
+}
+
+[class*="bg-[#270A77]"],
+.bg-\[\#270A77\] {
+  background: #1F352C !important;
+}
+
+[class*="from-[#1A0553]"] {
+  --tw-gradient-from: #182922 !important;
+}
+
+[class*="to-[#35109B]"] {
+  --tw-gradient-to: #2E4A3E !important;
+}
+
+[class*="text-[#35109B]"],
+.text-\[\#35109B\] {
+  color: var(--primary-color) !important;
+}
+
+[class*="border-[#35109B]"],
+.border-\[\#35109B\] {
+  border-color: var(--primary-color) !important;
+}
+
+[class*="ring-[#35109B]"],
+.ring-\[\#35109B\] {
+  --tw-ring-color: var(--primary-color) !important;
+}
+
+[class*="hover:bg-[#270A77]"]:hover,
+[class*="hover:bg-[#280a7a]"]:hover {
+  background-color: var(--primary-hover) !important;
+}
+
+[class*="bg-[#F2EFFF]"],
+.bg-\[\#F2EFFF\] {
+  background-color: var(--primary-light) !important;
+}
+
+[class*="bg-[#FF7900]"],
+.bg-\[\#FF7900\] {
+  background-color: var(--accent-color) !important;
+}
+
+[class*="text-[#FF7900]"],
+.text-\[\#FF7900\] {
+  color: var(--accent-color) !important;
+}
+
+[class*="border-[#FF7900]"],
+.border-\[\#FF7900\] {
+  border-color: var(--accent-color) !important;
+}
+
+[class*="hover:bg-[#ea580c]"]:hover,
+[class*="hover:bg-[#e05a00]"]:hover {
+  background-color: var(--accent-hover) !important;
+}
+
+[class*="fill-[#FF7900]"] {
+  fill: var(--accent-color) !important;
+}
+
+/* Subtle Sage Palette Helpers */
+[class*="text-purple-200"] {
+  color: #D2DDD0 !important;
+}
+
+[class*="text-purple-600"],
+[class*="text-purple-700"],
+[class*="text-purple-800"] {
+  color: var(--primary-color) !important;
+}
+
+[class*="bg-purple-50"],
+[class*="bg-purple-100"] {
+  background-color: var(--primary-light) !important;
+}
+
+[class*="border-purple-100"],
+[class*="border-purple-200"] {
+  border-color: var(--theme-border) !important;
+}
+
+[class*="bg-orange-50"],
+[class*="bg-orange-100"] {
+  background-color: var(--accent-light) !important;
+}
+
+[class*="text-orange-500"],
+[class*="text-orange-600"],
+[class*="text-orange-700"] {
+  color: var(--accent-color) !important;
+}
+
+[class*="border-orange-100"],
+[class*="border-orange-200"],
+[class*="border-orange-300"] {
+  border-color: var(--theme-border) !important;
+}
+
+[class*="focus:ring-[#FF7900]"],
+[class*="focus:ring-orange-500"] {
+  --tw-ring-color: var(--accent-color) !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  opacity: 0.5;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover);
+}
+
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* Safe area padding for devices with home indicator */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Content visibility — skip rendering off-screen sections until scroll approaches */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Infinite Marquee Animation */
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 25s) linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Print styling for GST invoices */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+  }
+  header, footer, nav, .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
