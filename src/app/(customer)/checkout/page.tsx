@@ -23,6 +23,8 @@ import {
   Navigation,
   Loader2,
   Home,
+  Sparkles,
+  ShoppingBag,
 } from 'lucide-react';
 
 interface AddressForm {
@@ -143,8 +145,27 @@ export default function CheckoutPage() {
   const [captchaInput, setCaptchaInput] = useState('');
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [orderPlaced, setOrderPlaced] = useState(false); // prevents cart-empty redirect after order
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [placedOrderNumber, setPlacedOrderNumber] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(5);
+
+  // Start countdown when order is placed
+  useEffect(() => {
+    if (!orderPlaced) return;
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          clearCart();
+          router.replace('/');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [orderPlaced]); // eslint-disable-line
 
   // Called by RazorpayButton after successful payment + verification
   const handleRazorpaySuccess = async (paymentId: string, razorpayOrderId: string, signature: string) => {
@@ -176,16 +197,9 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (res.ok && data.orderNumber) {
-        // Set flag BEFORE clearing cart to prevent empty-cart redirect
+        // Show success popup directly on this page — no navigation race condition
+        setPlacedOrderNumber(data.orderNumber);
         setOrderPlaced(true);
-        // Store order number so success page can read it even if cart clears
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('last_order_number', data.orderNumber);
-        }
-        // Navigate immediately — clear cart only after navigation is complete
-        router.replace(`/order-success/${data.orderNumber}`);
-        // Delay cart clear long enough for the new page to fully load
-        setTimeout(() => clearCart(), 2000);
       } else {
         setErrorMessage(data.message || 'Failed to place order. Please try again.');
       }
@@ -294,6 +308,107 @@ export default function CheckoutPage() {
 
   return (
     <>
+    {/* ── ORDER SUCCESS POPUP — renders on this same page, no navigation needed ── */}
+    {orderPlaced && (
+      <>
+        {/* Confetti */}
+        <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
+          {[...Array(32)].map((_, i) => (
+            <span key={i} className="absolute rounded-sm"
+              style={{
+                width: `${6 + (i % 4) * 2}px`,
+                height: `${6 + (i % 3) * 2}px`,
+                left: `${(i * 3.3) % 100}%`,
+                top: `-16px`,
+                backgroundColor: ['#527863','#A3B18A','#2E4A3E','#DFE8DD','#FAF6F0','#ffffff'][i % 6],
+                animation: `confettiFall ${1.6 + (i % 6) * 0.25}s ease-in ${(i % 8) * 0.12}s forwards`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Modal overlay */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Green header */}
+            <div className="bg-gradient-to-br from-[#182922] via-[#2E4A3E] to-[#527863] px-8 py-10 text-center text-white">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-2xl ring-4 ring-white/30"
+                style={{ animation: 'popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>
+                <CheckCircle2 className="text-white" strokeWidth={2} style={{ width: 52, height: 52 }} />
+              </div>
+              <div style={{ animation: 'slideUp 0.4s ease-out 0.1s both' }}>
+                <span className="inline-flex items-center space-x-1.5 bg-[#527863]/80 text-white text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Order Placed Successfully!</span>
+                </span>
+                <h1 className="text-2xl font-black leading-tight">Thank you! 🎉</h1>
+                <p className="text-white/80 text-sm mt-1.5">
+                  Order <span className="font-black text-white bg-white/20 px-2 py-0.5 rounded-lg text-xs">{placedOrderNumber}</span> confirmed
+                </p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-7 py-6 space-y-5" style={{ animation: 'slideUp 0.4s ease-out 0.2s both' }}>
+              <div className="bg-[#DFE8DD]/50 rounded-2xl p-4 border border-[#DFE8DD] space-y-2.5">
+                {[
+                  { icon: '📦', text: 'Your order is being prepared by our team' },
+                  { icon: '🚚', text: 'Will be shipped within 24 hours' },
+                  { icon: '📱', text: "You'll get delivery updates on your phone" },
+                ].map((s, i) => (
+                  <div key={i} className="flex items-center space-x-3 text-xs">
+                    <span className="text-base">{s.icon}</span>
+                    <span className="font-semibold text-[#1B2721]">{s.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Countdown */}
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-2">
+                  Redirecting to home in <span className="font-black text-[#2E4A3E] text-sm">{countdown}</span>s...
+                </p>
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#2E4A3E] rounded-full transition-all duration-1000"
+                    style={{ width: `${((5 - countdown) / 5) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => { clearCart(); router.replace(`/account/orders/${placedOrderNumber}`); }}
+                  className="flex-1 flex items-center justify-center space-x-2 border-2 border-[#2E4A3E] text-[#2E4A3E] hover:bg-[#DFE8DD] py-3 rounded-xl font-bold text-sm transition-all">
+                  <Truck className="w-4 h-4" />
+                  <span>Track Order</span>
+                </button>
+                <button onClick={() => { clearCart(); router.replace('/'); }}
+                  className="flex-1 flex items-center justify-center space-x-2 bg-[#2E4A3E] hover:bg-[#22382F] text-white py-3 rounded-xl font-bold text-sm transition-all shadow-md">
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Go to Home</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes confettiFall {
+            0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(540deg) scale(0.4); opacity: 0; }
+          }
+          @keyframes popIn {
+            0%   { transform: scale(0.3); opacity: 0; }
+            65%  { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(16px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+          }
+        `}</style>
+      </>
+    )}
+
     {(authLoading || !user) && (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-center px-4">
         <div className="w-12 h-12 rounded-full border-4 border-[#DFE8DD] border-t-[#2E4A3E] animate-spin" />
