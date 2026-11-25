@@ -125,13 +125,7 @@ export default function OrderTrackingPage() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <Link
-              href={`/account/orders/${order.orderNumber}/invoice`}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center space-x-1.5"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Download Tax Invoice</span>
-            </Link>
+            {/* Invoice removed — available to admin only */}
           </div>
         </div>
 

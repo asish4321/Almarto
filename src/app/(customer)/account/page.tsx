@@ -86,7 +86,7 @@ export default function AccountPage() {
                 <Package className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-sm text-[#19152B] mb-1">My Orders</h3>
-              <p className="text-xs text-gray-500">Track shipments, download invoices, return or cancel items</p>
+              <p className="text-xs text-gray-500">Track shipments, return or cancel items</p>
             </div>
             <span className="text-xs font-bold text-[#35109B] flex items-center space-x-1 mt-4">
               <span>View Orders</span>

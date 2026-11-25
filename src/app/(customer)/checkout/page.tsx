@@ -794,7 +794,7 @@ export default function CheckoutPage() {
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 <span>100% Purchase Protection Guarantee</span>
               </p>
-              <p>Safe bank transmission with automated GST Tax invoice generation.</p>
+              <p>Safe and secure checkout with purchase protection.</p>
             </div>
           </div>
         </div>

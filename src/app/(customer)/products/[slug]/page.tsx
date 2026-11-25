@@ -540,7 +540,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="text-right">
               <span className="text-emerald-700 font-bold block">4.9 ★ Rating</span>
-              <span className="text-[10px] text-gray-400">GST Invoice Available</span>
+              <span className="text-[10px] text-gray-400">Purchase Protected</span>
             </div>
           </div>
         </div>
