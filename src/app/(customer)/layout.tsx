@@ -5,15 +5,10 @@ import { PincodeModal } from '@/components/common/PincodeModal';
 import { BottomNav } from '@/components/common/BottomNav';
 import { AuthGate } from '@/components/common/AuthGate';
 import { getThemeById, generateCssVariables, ThemeStyles } from '@/lib/themes';
+import { getLayoutCache, setLayoutCache, CACHE_TTL } from '@/lib/siteCache';
 
-// In-memory fallback that survives across requests in the same process
-// Works in both dev and production, unlike unstable_cache which dev bypasses
-let _layoutCache: {
-  settingsMap: Record<string, string>;
-  categories: { id: string; name: string; slug: string; icon?: string | null; image?: string | null }[];
-  ts: number;
-} | null = null;
-const LAYOUT_TTL = 5 * 60 * 1000; // 5 minutes
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const EMPTY_LAYOUT = {
   settingsMap: {} as Record<string, string>,
@@ -21,8 +16,9 @@ const EMPTY_LAYOUT = {
 };
 
 const getLayoutData = async () => {
-  if (_layoutCache && Date.now() - _layoutCache.ts < LAYOUT_TTL) {
-    return { settingsMap: _layoutCache.settingsMap, categories: _layoutCache.categories };
+  const cached = getLayoutCache();
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data;
   }
   try {
     const result = await Promise.race([
@@ -46,12 +42,10 @@ const getLayoutData = async () => {
       acc[s.key] = s.value;
       return acc;
     }, {} as Record<string, string>);
-    if (dbCategories.length > 0 || settings.length > 0) {
-      _layoutCache = { settingsMap, categories: dbCategories, ts: Date.now() };
-    }
+    setLayoutCache(settingsMap, dbCategories);
     return { settingsMap, categories: dbCategories };
   } catch {
-    if (_layoutCache) return { settingsMap: _layoutCache.settingsMap, categories: _layoutCache.categories };
+    if (cached) return cached.data;
     return EMPTY_LAYOUT;
   }
 };
@@ -67,15 +61,10 @@ export default async function CustomerLayout({
   const baseTheme = getThemeById(activeThemeId);
   const themeStyles: ThemeStyles = {
     ...baseTheme.styles,
-    bgColor: activeThemeId === 'pale_sage_ivory' ? '#EFE9DF' : (settingsMap['theme_bg_color'] || '#EFE9DF'),
-    cardBg: '#FAF6F0',
-    headerBg: activeThemeId === 'pale_sage_ivory' ? 'linear-gradient(135deg, #1E332B 0%, #2E4A3E 50%, #3B5A4D 100%)' : (settingsMap['theme_header_bg'] || baseTheme.styles.headerBg),
-    primaryColor: activeThemeId === 'pale_sage_ivory' ? '#2E4A3E' : (settingsMap['theme_primary_color'] || baseTheme.styles.primaryColor),
-    primaryHover: activeThemeId === 'pale_sage_ivory' ? '#22382F' : (settingsMap['theme_primary_color'] || baseTheme.styles.primaryHover),
-    accentColor: activeThemeId === 'pale_sage_ivory' ? '#527863' : (settingsMap['theme_accent_color'] || baseTheme.styles.accentColor),
-    accentHover: activeThemeId === 'pale_sage_ivory' ? '#3E5C4B' : (settingsMap['theme_accent_color'] || baseTheme.styles.accentHover),
-    borderColor: '#DED6C7',
-    headerText: '#FAF6F0',
+    ...(settingsMap['theme_primary_color'] ? { primaryColor: settingsMap['theme_primary_color'], primaryHover: settingsMap['theme_primary_color'] } : {}),
+    ...(settingsMap['theme_accent_color'] ? { accentColor: settingsMap['theme_accent_color'], accentHover: settingsMap['theme_accent_color'] } : {}),
+    ...(settingsMap['theme_bg_color'] ? { bgColor: settingsMap['theme_bg_color'] } : {}),
+    ...(settingsMap['theme_header_bg'] ? { headerBg: settingsMap['theme_header_bg'] } : {}),
   };
   const dynamicCss = generateCssVariables(themeStyles);
 

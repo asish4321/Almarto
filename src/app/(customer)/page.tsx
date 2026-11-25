@@ -14,13 +14,10 @@ import {
   CheckCircle2,
   Package,
 } from 'lucide-react';
+import { getHomeCache, setHomeCache, CACHE_TTL } from '@/lib/siteCache';
 
-// In-memory cache — survives across requests in the same Node process (works in dev too)
-let _homeCache: {
-  data: Awaited<ReturnType<typeof fetchHomeData>>;
-  ts: number;
-} | null = null;
-const HOME_TTL = 5 * 60 * 1000; // 5 minutes
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function fetchHomeData() {
   // Run only 3 parallel queries instead of 6 — combine product flags with OR
@@ -58,8 +55,9 @@ async function fetchHomeData() {
 }
 
 const getHomeData = async () => {
-  if (_homeCache && Date.now() - _homeCache.ts < HOME_TTL) {
-    return _homeCache.data;
+  const cached = getHomeCache();
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data;
   }
   try {
     const data = await Promise.race([
@@ -68,13 +66,11 @@ const getHomeData = async () => {
         setTimeout(() => reject(new Error('home timeout')), 10000)
       ),
     ]);
-    if (data.latestProducts.length > 0 || data.heroBanners.length > 0) {
-      _homeCache = { data, ts: Date.now() };
-    }
+    setHomeCache(data);
     return data;
   } catch (e) {
     console.error('Home data fetch error:', e);
-    if (_homeCache) return _homeCache.data;
+    if (cached) return cached.data;
     return {
       dealProducts: [] as any[], trendingProducts: [] as any[],
       bestSellerProducts: [] as any[], latestProducts: [] as any[],

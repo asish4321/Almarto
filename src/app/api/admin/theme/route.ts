@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { THEMES, getThemeById, ThemeStyles } from '@/lib/themes';
+import { invalidateAllCaches } from '@/lib/siteCache';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -103,6 +105,10 @@ export async function POST(request: Request) {
         create: { key: item.key, value: item.value },
       });
     }
+
+    invalidateAllCaches();
+    revalidatePath('/', 'layout');
+    revalidatePath('/');
 
     return NextResponse.json({
       success: true,

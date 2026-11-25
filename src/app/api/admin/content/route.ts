@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { invalidateAllCaches } from '@/lib/siteCache';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -51,6 +56,9 @@ export async function POST(request: Request) {
           isActive: bannerData.isActive !== false,
         },
       });
+      invalidateAllCaches();
+      revalidatePath('/', 'layout');
+      revalidatePath('/');
       return NextResponse.json({ success: true, banner });
     }
 
@@ -62,6 +70,9 @@ export async function POST(request: Request) {
           create: { key, value: String(value), group: 'STORE' },
         });
       }
+      invalidateAllCaches();
+      revalidatePath('/', 'layout');
+      revalidatePath('/');
       return NextResponse.json({ success: true, message: 'Settings updated' });
     }
 
@@ -86,6 +97,9 @@ export async function DELETE(request: Request) {
     if (!bannerId) return NextResponse.json({ message: 'Banner ID required' }, { status: 400 });
 
     await prisma.banner.delete({ where: { id: bannerId } });
+    invalidateAllCaches();
+    revalidatePath('/', 'layout');
+    revalidatePath('/');
     return NextResponse.json({ success: true, message: 'Banner deleted' });
   } catch (error) {
     console.error('Delete banner error:', error);

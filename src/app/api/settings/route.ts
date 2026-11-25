@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSettingsCache, setSettingsCache, CACHE_TTL } from '@/lib/siteCache';
 
 export const dynamic = 'force-dynamic';
-
-// In-memory cache — avoids a DB round-trip on every page that calls /api/settings
-let _cache: { data: Record<string, string>; ts: number } | null = null;
-const TTL = 5 * 60 * 1000; // 5 minutes
+export const revalidate = 0;
 
 export async function GET() {
   try {
+    const cached = getSettingsCache();
     // Serve from memory if fresh
-    if (_cache && Date.now() - _cache.ts < TTL) {
-      return NextResponse.json({ settings: _cache.data });
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return NextResponse.json({ settings: cached.data });
     }
 
     const settings = await Promise.race([
@@ -26,11 +25,11 @@ export async function GET() {
       {} as Record<string, string>
     );
 
-    _cache = { data: settingsMap, ts: Date.now() };
+    setSettingsCache(settingsMap);
     return NextResponse.json({ settings: settingsMap });
   } catch (error) {
     if (process.env.NODE_ENV === 'development') console.error('Settings fetch error:', error);
-    // Return cached data if available, otherwise empty
-    return NextResponse.json({ settings: _cache?.data ?? {} }, { status: 200 });
+    const cached = getSettingsCache();
+    return NextResponse.json({ settings: cached?.data ?? {} }, { status: 200 });
   }
 }
