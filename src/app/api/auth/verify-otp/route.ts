@@ -104,7 +104,14 @@ export async function POST(request: Request) {
     });
 
     // Create session token & set cookie
-    const token = createSessionToken(user);
+    const token = createSessionToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      loyaltyPoints: user.profile?.loyaltyPoints || 0,
+    });
     const response = NextResponse.json({
       success: true,
       message: 'Email successfully verified!',

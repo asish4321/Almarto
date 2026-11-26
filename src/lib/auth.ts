@@ -8,53 +8,74 @@ export async function getCurrentUser(): Promise<UserSession | null> {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   try {
-    // In production we verify JWT / HMAC signature.
-    // For demo/standalone, token contains base64 encoded user info or userId
-    let userId = token;
-    if (token.startsWith('user_')) {
-      userId = token.replace('user_', '');
-    } else {
-      try {
-        const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
-        userId = decoded.id;
-      } catch {
-        userId = token;
-      }
-    }
+    // Token is base64-encoded JSON containing full user session data
+    // This avoids a DB round-trip on every request
+    const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { profile: true },
-    });
+    // Validate token has required fields
+    if (!decoded.id || !decoded.email || !decoded.role) return null;
 
-    if (!user || !user.isActive || user.isBlocked) {
+    // Token expiry check — 30 days
+    if (decoded.createdAt && Date.now() - decoded.createdAt > 30 * 24 * 60 * 60 * 1000) {
       return null;
     }
 
+    // Return user directly from token — no DB call needed
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role as UserRole,
-      phone: user.phone,
-      loyaltyPoints: user.profile?.loyaltyPoints || 0,
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name || decoded.email.split('@')[0],
+      role: decoded.role as UserRole,
+      phone: decoded.phone || null,
+      loyaltyPoints: decoded.loyaltyPoints || 0,
     };
-  } catch (err) {
-    console.error('Failed to get current user:', err);
-    return null;
+  } catch {
+    // Token malformed — try legacy format or DB lookup
+    try {
+      let userId = token;
+      if (token.startsWith('user_')) userId = token.replace('user_', '');
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { profile: true },
+      });
+
+      if (!user || !user.isActive || user.isBlocked) return null;
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role as UserRole,
+        phone: user.phone,
+        loyaltyPoints: user.profile?.loyaltyPoints || 0,
+      };
+    } catch (err) {
+      console.error('getCurrentUser fallback error:', err);
+      return null;
+    }
   }
 }
 
-export function createSessionToken(user: { id: string; email: string; role: string }): string {
+// Store full user data in token so auth/me doesn't need a DB call
+export function createSessionToken(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  phone?: string | null;
+  loyaltyPoints?: number;
+}): string {
   const payload = {
     id: user.id,
     email: user.email,
+    name: user.name,
     role: user.role,
+    phone: user.phone || null,
+    loyaltyPoints: user.loyaltyPoints || 0,
     createdAt: Date.now(),
   };
   return Buffer.from(JSON.stringify(payload)).toString('base64');

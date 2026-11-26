@@ -45,7 +45,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid password' }, { status: 401 });
     }
 
-    const token = createSessionToken(user);
+    const token = createSessionToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      loyaltyPoints: user.profile?.loyaltyPoints || 0,
+    });
     const response = NextResponse.json({
       success: true,
       user: {

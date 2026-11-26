@@ -38,7 +38,14 @@ export async function POST(request: Request) {
       },
     });
 
-    const token = createSessionToken(newUser);
+    const token = createSessionToken({
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role,
+      phone: newUser.phone,
+      loyaltyPoints: newUser.profile?.loyaltyPoints || 100,
+    });
     const response = NextResponse.json({
       success: true,
       user: {
