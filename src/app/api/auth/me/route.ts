@@ -3,9 +3,12 @@ import { getCurrentUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const authHeader = request.headers.get('authorization');
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+
+    const user = await getCurrentUser(tokenFromHeader);
     if (!user) {
       return NextResponse.json({ user: null }, { status: 200 });
     }

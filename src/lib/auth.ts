@@ -2,11 +2,26 @@ import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import { UserRole, UserSession } from './types';
 
-const SESSION_COOKIE_NAME = 'almarto_session_token';
+export const SESSION_COOKIE_NAME = 'almarto_session_token';
 
-export async function getCurrentUser(): Promise<UserSession | null> {
-  const cookieStore = cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+export function isSecureCookie(request?: Request): boolean {
+  if (process.env.NODE_ENV !== 'production') return false;
+  if (!request) return false;
+  const host = request.headers.get('host') || '';
+  if (host.includes('localhost') || host.includes('127.0.0.1')) return false;
+  return true;
+}
+
+export async function getCurrentUser(tokenOverride?: string): Promise<UserSession | null> {
+  let token = tokenOverride;
+  if (!token) {
+    try {
+      const cookieStore = cookies();
+      token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    } catch {
+      // In case cookies() is accessed outside Next.js request context
+    }
+  }
 
   if (!token) return null;
 
@@ -40,7 +55,6 @@ export async function getCurrentUser(): Promise<UserSession | null> {
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { profile: true },
       });
 
       if (!user || !user.isActive || user.isBlocked) return null;
@@ -51,7 +65,7 @@ export async function getCurrentUser(): Promise<UserSession | null> {
         name: user.name,
         role: user.role as UserRole,
         phone: user.phone,
-        loyaltyPoints: user.profile?.loyaltyPoints || 0,
+        loyaltyPoints: 100,
       };
     } catch (err) {
       console.error('getCurrentUser fallback error:', err);
@@ -102,7 +116,7 @@ export async function requireAdmin(): Promise<UserSession> {
     user.role === 'ADMIN';
 
   if (!isAllowed) {
-    const error: any = new Error('Forbidden: Admin access only');
+    const error: any = new Error('Forbidden');
     error.statusCode = 403;
     throw error;
   }

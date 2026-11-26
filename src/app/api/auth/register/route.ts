@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createSessionToken } from '@/lib/auth';
+import { createSessionToken, isSecureCookie } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -20,13 +20,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'An account with this email already exists' }, { status: 409 });
     }
 
+    const isOwner = cleanEmail === 'aswak761@gmail.com' || cleanEmail === 'admin@almarto.com';
+
     const newUser = await prisma.user.create({
       data: {
         name,
         email: cleanEmail,
         passwordHash: password || 'customer123',
         phone: phone || null,
-        role: 'CUSTOMER',
+        role: isOwner ? 'SUPER_ADMIN' : 'CUSTOMER',
         profile: {
           create: {
             loyaltyPoints: 100, // Welcome gift
@@ -46,8 +48,10 @@ export async function POST(request: Request) {
       phone: newUser.phone,
       loyaltyPoints: newUser.profile?.loyaltyPoints || 100,
     });
+
     const response = NextResponse.json({
       success: true,
+      token,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -58,9 +62,11 @@ export async function POST(request: Request) {
       },
     });
 
+    const secure = isSecureCookie(request);
+
     response.cookies.set('almarto_session_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30,

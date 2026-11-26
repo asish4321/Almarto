@@ -24,34 +24,48 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Lazy-load supabase only when actually needed — avoids loading ~300KB + IndexedDB init on every page
+// Lazy-load supabase only when actually needed
 async function getSupabase() {
   const { supabase } = await import('@/lib/supabase');
   return supabase;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserSession | null>(null);
+  // Initialize user immediately from localStorage to avoid "Login" flash on page load
+  const [user, setUser] = useState<UserSession | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem('almarto_user_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchCurrentUser = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('almarto_token') : null;
+      const res = await fetch('/api/auth/me', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
         if (data.user) {
+          setUser(data.user);
+          localStorage.setItem('almarto_user_session', JSON.stringify(data.user));
           localStorage.setItem('almarto_user', '1');
         } else {
-          localStorage.removeItem('almarto_user');
+          // Only clear if server explicitly returned user=null AND we didn't just log in locally
+          const hasLocalSession = typeof window !== 'undefined' && localStorage.getItem('almarto_user_session');
+          if (!hasLocalSession) {
+            setUser(null);
+            localStorage.removeItem('almarto_user');
+          }
         }
-      } else {
-        // 4xx means session is invalid — clear it
-        setUser(null);
-        localStorage.removeItem('almarto_user');
       }
-    } catch {
-      setUser(null);
+    } catch (err) {
+      console.warn('fetchCurrentUser network error:', err);
     } finally {
       setLoading(false);
     }
@@ -60,17 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchCurrentUser();
 
-    // Only wire up supabase auth listener after initial user check
+    // Only wire up supabase auth listener for OAuth sign-in events
     let unsubscribe: (() => void) | null = null;
-    let syncing = false; // prevent concurrent sync calls
+    let syncing = false;
     getSupabase().then((supabase) => {
       if (!supabase) return;
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        // Only act on actual sign-in events, not token refreshes with clock skew
         if (event === 'SIGNED_IN' && session?.user && !syncing) {
           syncing = true;
           try {
-            await fetch('/api/auth/sync-session', {
+            const res = await fetch('/api/auth/sync-session', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -81,22 +94,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 avatarUrl: session.user.user_metadata?.avatar_url,
               }),
             });
-            await fetchCurrentUser();
+            const syncData = await res.json();
+            if (res.ok && syncData.user) {
+              setUser(syncData.user);
+              if (syncData.token) localStorage.setItem('almarto_token', syncData.token);
+              localStorage.setItem('almarto_user_session', JSON.stringify(syncData.user));
+              localStorage.setItem('almarto_user', '1');
+            }
           } catch (err) {
             console.error('Error syncing onAuthStateChange:', err);
           } finally {
             syncing = false;
           }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          localStorage.removeItem('almarto_user');
         }
-        // Ignore TOKEN_REFRESHED, INITIAL_SESSION etc. to avoid loops
+        // NOTE: We deliberately do NOT call setUser(null) on Supabase SIGNED_OUT,
+        // because password & OTP logins are managed by our secure session token.
       });
       unsubscribe = () => authListener.subscription.unsubscribe();
     });
 
-    return () => { unsubscribe?.(); };
+    return () => {
+      unsubscribe?.();
+    };
   }, []);
 
   const loginWithGoogle = async (): Promise<AuthResponse> => {
@@ -126,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      return { success: false, message: 'No authorization URL returned from Supabase.' };
+      return { success: false, message: 'Could not generate Google sign-in URL' };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Google OAuth sign-in failed';
       return { success: false, message };
@@ -164,6 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (res.ok && data.user) {
         setUser(data.user);
+        if (data.token) localStorage.setItem('almarto_token', data.token);
+        localStorage.setItem('almarto_user_session', JSON.stringify(data.user));
+        localStorage.setItem('almarto_user', '1');
         return { success: true, message: data.message };
       }
       return { success: false, message: data.message || 'Verification failed' };
@@ -175,45 +197,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password = 'password123'): Promise<AuthResponse> => {
     try {
       const cleanEmail = email.toLowerCase().trim();
-      const supabase = await getSupabase();
 
-      if (supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-
-          if (error) {
-            if (error.message.toLowerCase().includes('email not confirmed')) {
-              return {
-                success: false,
-                needsVerification: true,
-                message: 'Your email has not been verified yet. Please check your inbox for the confirmation link sent by Supabase.',
-              };
-            }
-          } else if (data?.user) {
-            const syncRes = await fetch('/api/auth/sync-session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: data.user.email,
-                name: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
-                phone: data.user.user_metadata?.phone,
-                supabaseId: data.user.id,
-              }),
-            });
-            const syncData = await syncRes.json();
-            if (syncRes.ok && syncData.user) {
-              setUser(syncData.user);
-              return { success: true };
-            }
-          }
-        } catch (supaErr) {
-          console.warn('Supabase signInWithPassword fallback:', supaErr);
-        }
-      }
-
+      // Primary: Call our backend login endpoint directly — fast, robust, sets cookie and returns session token
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,8 +207,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (res.ok && data.user) {
         setUser(data.user);
+        if (data.token) localStorage.setItem('almarto_token', data.token);
+        localStorage.setItem('almarto_user_session', JSON.stringify(data.user));
+        localStorage.setItem('almarto_user', '1');
         return { success: true };
       }
+
+      // Secondary fallback: check if account was registered via Supabase Auth
+      const supabase = await getSupabase();
+      if (supabase) {
+        try {
+          const { data: supaData, error } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          });
+
+          if (!error && supaData?.user) {
+            const syncRes = await fetch('/api/auth/sync-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: supaData.user.email,
+                name: supaData.user.user_metadata?.full_name || supaData.user.user_metadata?.name,
+                phone: supaData.user.user_metadata?.phone,
+                supabaseId: supaData.user.id,
+              }),
+            });
+            const syncData = await syncRes.json();
+            if (syncRes.ok && syncData.user) {
+              setUser(syncData.user);
+              if (syncData.token) localStorage.setItem('almarto_token', syncData.token);
+              localStorage.setItem('almarto_user_session', JSON.stringify(syncData.user));
+              localStorage.setItem('almarto_user', '1');
+              return { success: true };
+            }
+          }
+        } catch (supaErr) {
+          console.warn('Supabase signInWithPassword fallback error:', supaErr);
+        }
+      }
+
       return { success: false, message: data.message || 'Invalid email or password' };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Network error during login';
@@ -239,29 +262,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<AuthResponse> => {
     try {
       const cleanEmail = email.toLowerCase().trim();
-      let needsVerification = false;
-      const supabase = await getSupabase();
-
-      if (supabase) {
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: cleanEmail,
-            password,
-            options: {
-              data: { full_name: name, name, phone },
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            },
-          });
-
-          if (error) {
-            console.warn('Supabase auth signUp response:', error.message);
-          } else if (data?.user && !data.session) {
-            needsVerification = true;
-          }
-        } catch (supaErr) {
-          console.warn('Supabase signUp error:', supaErr);
-        }
-      }
 
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -269,40 +269,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ name, email: cleanEmail, password, phone }),
       });
       const data = await res.json();
-
       if (res.ok && data.user) {
-        if (!needsVerification) {
-          setUser(data.user);
-        }
-        return {
-          success: true,
-          needsVerification,
-          message: needsVerification
-            ? `Verification email sent to ${cleanEmail}! Please check your email inbox to confirm your account.`
-            : 'Account created successfully! Welcome to ALMARTO.',
-        };
+        setUser(data.user);
+        if (data.token) localStorage.setItem('almarto_token', data.token);
+        localStorage.setItem('almarto_user_session', JSON.stringify(data.user));
+        localStorage.setItem('almarto_user', '1');
+        return { success: true };
       }
-
-      return { success: false, message: data.message || 'Registration failed' };
+      return { success: false, message: data.message || 'Failed to create account' };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Network error during registration';
       return { success: false, message };
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
+      await fetch('/api/auth/logout', { method: 'POST' });
       const supabase = await getSupabase();
       if (supabase) {
         await supabase.auth.signOut().catch(() => {});
       }
-      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors on logout
+    } finally {
       setUser(null);
+      localStorage.removeItem('almarto_user_session');
       localStorage.removeItem('almarto_user');
+      localStorage.removeItem('almarto_token');
       window.location.href = '/';
-    } catch (err) {
-      console.error('Logout error:', err);
     }
+  };
+
+  const refreshUser = async () => {
+    await fetchCurrentUser();
   };
 
   return (
@@ -316,7 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyOtp,
         register,
         logout,
-        refreshUser: fetchCurrentUser,
+        refreshUser,
       }}
     >
       {children}
@@ -326,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
