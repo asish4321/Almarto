@@ -12,10 +12,20 @@ import {
   LogOut,
   ChevronRight,
   Sliders,
+  Loader2,
 } from 'lucide-react';
 
 export default function AccountPage() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center space-y-3">
+        <Loader2 className="w-8 h-8 text-[#35109B] animate-spin" />
+        <p className="text-xs text-gray-500 font-medium">Loading your account...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

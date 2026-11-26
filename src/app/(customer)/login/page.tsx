@@ -29,7 +29,23 @@ function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/';
-  const { user, login, loginWithGoogle, sendOtp, verifyOtp } = useAuth();
+  const { user, loading: authLoading, login, loginWithGoogle, sendOtp, verifyOtp } = useAuth();
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+
+  // Check if returning from OAuth with tokens in hash or query
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasAuthTokens =
+        window.location.hash.includes('access_token') ||
+        window.location.hash.includes('token=') ||
+        window.location.search.includes('access_token') ||
+        window.location.search.includes('code=');
+
+      if (hasAuthTokens) {
+        setIsProcessingOAuth(true);
+      }
+    }
+  }, []);
 
   // If already logged in, redirect based on role or the original destination
   React.useEffect(() => {
@@ -146,6 +162,16 @@ function LoginPage() {
       }
     }
   };
+
+  if (isProcessingOAuth || user) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center space-y-4">
+        <Loader2 className="w-10 h-10 text-[#35109B] animate-spin" />
+        <h2 className="text-base font-bold text-[#19152B]">Completing sign-in securely...</h2>
+        <p className="text-xs text-gray-500">Redirecting to your destination...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 flex items-center justify-center">

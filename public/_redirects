@@ -1,0 +1,7 @@
+# Netlify redirects file
+# Static assets and API routes handled by Next.js
+/_next/*   /_next/:splat   200
+/api/*     /api/:splat     200
+
+# Client-side routing fallback for deep links
+/*         /index.html     200
