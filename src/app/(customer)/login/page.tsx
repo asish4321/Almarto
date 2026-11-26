@@ -73,6 +73,16 @@ function LoginPage() {
   // OTP State
   const [otpStep, setOtpStep] = useState<'EMAIL' | 'CODE'>('EMAIL');
   const [otpCode, setOtpCode] = useState('');
+  const [storeLogo, setStoreLogo] = useState('/logo.png');
+
+  React.useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.store_logo) setStoreLogo(d.settings.store_logo);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -180,12 +190,13 @@ function LoginPage() {
         <div className="text-center space-y-2">
           <div className="relative h-12 w-44 mx-auto">
             <Image
-              src="/logo.png"
+              src={storeLogo}
               alt="ALMARTO"
               fill
               priority
               sizes="(max-width: 768px) 150px, 176px"
               className="object-contain"
+              unoptimized
             />
           </div>
           <h1 className="text-xl font-bold text-[#19152B]">Sign in to ALMARTO</h1>

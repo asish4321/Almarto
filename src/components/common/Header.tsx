@@ -54,6 +54,9 @@ export function Header({ initialSettings, categories = [] }: HeaderProps = {}) {
   const { itemCount: wishlistCount } = useWishlist();
   const { pincode, pincodeInfo, setIsPincodeModalOpen } = usePincode();
 
+  const logoUrl = initialSettings?.store_logo || '/logo.png';
+  const brandTitle = initialSettings?.store_name || 'ALMARTO POP DIY';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SuggestionProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -175,7 +178,7 @@ export function Header({ initialSettings, categories = [] }: HeaderProps = {}) {
               {/* Logo */}
               <Link href="/" className="shrink-0 group">
                 <div className="relative h-11 w-40 lg:h-12 lg:w-48 bg-[#FAF6F0] border border-[#DED6C7] rounded-xl p-1.5 flex items-center justify-center shadow-md transition-transform duration-200 group-hover:scale-[1.02]">
-                  <Image src="/logo.png" alt="ALMARTO POP DIY" fill priority sizes="(max-width: 1024px) 160px, 192px" className="object-contain" />
+                  <Image src={logoUrl} alt={brandTitle} fill priority sizes="(max-width: 1024px) 160px, 192px" className="object-contain" unoptimized />
                 </div>
               </Link>
 
@@ -303,7 +306,7 @@ export function Header({ initialSettings, categories = [] }: HeaderProps = {}) {
               {/* Logo */}
               <Link href="/" className="shrink-0">
                 <div className="relative h-9 w-28 bg-[#FAF6F0] border border-[#DED6C7] rounded-xl p-1 flex items-center justify-center shadow-sm">
-                  <Image src="/logo.png" alt="ALMARTO" fill priority sizes="112px" className="object-contain" />
+                  <Image src={logoUrl} alt={brandTitle} fill priority sizes="112px" className="object-contain" unoptimized />
                 </div>
               </Link>
 

@@ -41,7 +41,7 @@ const ADMIN_NAV = [
   { name: 'Theme & Store Colors', href: '/admin/theme', icon: Palette },
   { name: 'Reports & Analytics', href: '/admin/reports', icon: BarChart3 },
   { name: 'Staff & Roles (RBAC)', href: '/admin/staff', icon: UserCheck },
-  { name: 'Settings & Gateways', href: '/admin/settings', icon: Settings },
+  { name: 'Logo & Store Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({
@@ -53,6 +53,16 @@ export default function AdminLayout({
   const router = useRouter();
   const { user, loading, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [storeLogo, setStoreLogo] = useState('/logo.png');
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.store_logo) setStoreLogo(d.settings.store_logo);
+      })
+      .catch(() => {});
+  }, []);
 
   const isAuthorized =
     user &&
@@ -93,7 +103,7 @@ export default function AdminLayout({
           <div className="p-5 border-b border-white/10 flex items-center justify-between">
             <Link href="/admin" className="flex items-center space-x-2">
               <div className="relative h-9 w-36 bg-white rounded-lg p-1 flex items-center justify-center">
-                <Image src="/logo.png" alt="ALMARTO" fill priority sizes="144px" className="object-contain" />
+                <Image src={storeLogo} alt="ALMARTO" fill priority sizes="144px" className="object-contain" unoptimized />
               </div>
             </Link>
             <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white">

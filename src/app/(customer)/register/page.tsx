@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,16 @@ export default function RegisterPage() {
   // OTP Verification state
   const [otpStep, setOtpStep] = useState<'FORM' | 'CODE'>('FORM');
   const [otpCode, setOtpCode] = useState('');
+  const [storeLogo, setStoreLogo] = useState('/logo.png');
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.store_logo) setStoreLogo(d.settings.store_logo);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true);
@@ -108,12 +118,13 @@ export default function RegisterPage() {
         <div className="text-center space-y-2">
           <div className="relative h-12 w-44 mx-auto">
             <Image
-              src="/logo.png"
+              src={storeLogo}
               alt="ALMARTO"
               fill
               priority
               sizes="(max-width: 768px) 150px, 176px"
               className="object-contain"
+              unoptimized
             />
           </div>
           <h1 className="text-xl font-bold text-[#19152B]">Create an ALMARTO Account</h1>

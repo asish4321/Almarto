@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { Lock, CheckCircle2, MessageCircle } from 'lucide-react';
 
 interface FooterSettings {
+  store_logo?: string;
+  store_name?: string;
   support_phone: string;
   support_email: string;
   business_address: string;
@@ -17,6 +19,8 @@ interface FooterSettings {
 }
 
 const DEFAULTS: FooterSettings = {
+  store_logo: '/logo.png',
+  store_name: 'ALMARTO',
   support_phone: '7032503603',
   support_email: 'almarto14@gmail.com',
   business_address: 'Bahadurpally, Hyderabad, Telangana – 500043\nOpposite Pista House',
@@ -82,7 +86,7 @@ export function Footer({ initialSettings }: FooterProps = {}) {
             {/* Col 1 — Brand + newsletter */}
             <div className="col-span-2 md:col-span-1 space-y-3">
               <div className="relative h-9 w-32 bg-[#FAF6F0] border border-[#DED6C7] rounded-xl p-1 flex items-center justify-center shadow-sm">
-                <Image src="/logo.png" alt="ALMARTO" fill sizes="128px" className="object-contain" />
+                <Image src={s.store_logo || '/logo.png'} alt={s.store_name || "ALMARTO"} fill sizes="128px" className="object-contain" unoptimized />
               </div>
               <p className="text-gray-400 text-[11px] leading-relaxed">
                 India's Pop DIY Toy &amp; Designer Craft Universe — based in Hyderabad.

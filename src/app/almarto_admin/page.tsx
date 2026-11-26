@@ -34,6 +34,16 @@ export default function AlmartoAdminLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [storeLogo, setStoreLogo] = useState('/logo.png');
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.store_logo) setStoreLogo(d.settings.store_logo);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,12 +80,13 @@ export default function AlmartoAdminLoginPage() {
         <div className="text-center space-y-2">
           <div className="relative h-12 w-48 mx-auto bg-white/10 rounded-2xl p-2 border border-white/10">
             <Image
-              src="/logo.png"
+              src={storeLogo}
               alt="ALMARTO"
               fill
               priority
               sizes="(max-width: 768px) 150px, 192px"
               className="object-contain"
+              unoptimized
             />
           </div>
           <div className="inline-flex items-center space-x-1.5 bg-[#FF7900]/20 text-[#FF7900] border border-[#FF7900]/30 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mt-2">

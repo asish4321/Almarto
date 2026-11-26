@@ -40,6 +40,16 @@ export default function InvoicePage() {
   const { user, loading: authLoading } = useAuth();
   const [order, setOrder] = useState<InvoiceOrder | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storeLogo, setStoreLogo] = useState('/logo.png');
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.store_logo) setStoreLogo(d.settings.store_logo);
+      })
+      .catch(() => {});
+  }, []);
 
   // Only admins and staff can view invoices
   const isStaff = user && ['SUPER_ADMIN', 'ADMIN', 'ORDER_MANAGER', 'FINANCE_MANAGER'].includes(user.role);
@@ -113,7 +123,7 @@ export default function InvoicePage() {
         <div className="flex flex-col sm:flex-row justify-between items-start pb-6 border-b-2 border-gray-900 gap-4">
           <div className="space-y-1">
             <div className="relative h-12 w-44 mb-2">
-              <Image src="/logo.png" alt="ALMARTO" fill priority sizes="176px" className="object-contain" />
+              <Image src={storeLogo} alt="ALMARTO" fill priority sizes="176px" className="object-contain" unoptimized />
             </div>
             <p className="font-bold text-sm text-[#19152B]">Almarto Internet Private Limited</p>
             <p className="text-gray-600 leading-snug">
